@@ -7,7 +7,7 @@ from beautifultable import BeautifulTable
 from config import USERNAME, PASSWORD
 
 class RobinhoodShell(cmd.Cmd):
-    intro = 'Welcome to the Robinhood shell. Type help or ? to list commands.\n'
+    intro = 'Welcome to the Robinhood shell. Type help or ? to list commands, and fullhelp for all commands and syntax.\n'
     prompt = '> '
 
     # API Object
@@ -52,7 +52,7 @@ class RobinhoodShell(cmd.Cmd):
 
     # ----- basic commands -----
     def do_l(self, arg):
-        'Lists current portfolio'
+        'l : Lists your current portfolio'
         portfolio = self.trader.portfolios()
         if portfolio['extended_hours_equity']:
             equity =  float(portfolio['extended_hours_equity'])
@@ -136,7 +136,7 @@ class RobinhoodShell(cmd.Cmd):
         print(table)
 
     def do_w(self, arg):
-        'Show watchlist w \nAdd to watchlist w a <symbol> \nRemove from watchlist w r <symbol>'
+        'w : Show watchlist\nw a <symbol> : Add <symbol> to watchlist \nw r : Remove <symbol> from watchlist'
         parts = arg.split()
         if len(parts) == 2:
             if parts[0] == 'a':
@@ -164,7 +164,7 @@ class RobinhoodShell(cmd.Cmd):
                 print "Watchlist empty!"
 
     def do_b(self, arg):
-        'Buy stock b <symbol> <quantity> <price>'
+        'b <symbol> <quantity> <price> : Submits a limit order to buy <quantity> stocks of <symbol> at <price>'
         parts = arg.split()
         if len(parts) >= 2 and len(parts) <= 3:
             symbol = parts[0]
@@ -195,7 +195,7 @@ class RobinhoodShell(cmd.Cmd):
             print "Bad Order"
 
     def do_s(self, arg):
-        'Sell stock s <symbol> <quantity> <?price>'
+        's <symbol> <quantity> <price> : Submits a limit order to sell <quantity> stocks of <symbol> at <price>'
         parts = arg.split()
         if len(parts) >= 2 and len(parts) <= 3:
             symbol = parts[0]
@@ -226,7 +226,7 @@ class RobinhoodShell(cmd.Cmd):
             print "Bad Order"
 
     def do_sl(self, arg):
-        'Setup stop loss on stock sl <symbol> <quantity> <price>'
+        'sl <symbol> <quantity> <price> : Sets up a stop loss order to sell <quantity> stocks of <symbol> at <price>'
         parts = arg.split()
         if len(parts) == 3:
             symbol = parts[0]
@@ -250,7 +250,7 @@ class RobinhoodShell(cmd.Cmd):
             print "Bad Order"
 
     def do_o(self, arg):
-        'List open orders'
+        'o : Lists all open orders'
         open_orders = self.trader.get_open_orders()
         if open_orders:
             table = BeautifulTable()
@@ -286,7 +286,7 @@ class RobinhoodShell(cmd.Cmd):
             print "No Open Orders"
 
     def do_c(self, arg):
-        'Cancel open order c <index> or c <id>'
+        'c <id> : Cancel an open order identified by <id> [<id> of a open order can be retrieved from output of o]'
         order_id = arg.strip()
         order_index = -1
         try:
@@ -311,7 +311,7 @@ class RobinhoodShell(cmd.Cmd):
             print e
 
     def do_ca(self, arg):
-        'Cancel all open orders'
+        'ca : Cancel all open orders'
         open_orders = self.trader.get_open_orders()
         for order in open_orders:
             try:
@@ -321,7 +321,7 @@ class RobinhoodShell(cmd.Cmd):
         print "Done"
 
     def do_mp(self, arg):
-        'Buy as many shares possible by defined max dollar amount:  mp <symbol> <max_spend> <?price_limit>'
+        'mp <symbol> <max_spend> <price_limit> : Buy as many shares of <symbol> possible by defined <max_spend> amount up to <price_limit>'
         parts = arg.split()
         if len(parts) >= 2 and len(parts) <= 3:
             symbol = parts[0]
@@ -362,7 +362,7 @@ class RobinhoodShell(cmd.Cmd):
    #         print "Bad Order"
 
     def do_q(self, arg):
-        'Get detailed quote for stock: q <symblol(s)>'
+        'q <symbol> : Get quote (current price) for <symbol>'
 
         symbols = re.split('\W+',arg)
 
@@ -387,44 +387,63 @@ class RobinhoodShell(cmd.Cmd):
             print(table)
 
     def do_qq(self, arg):
-        'Get quote for stock q <symbol> or option q <symbol> <call/put> <strike> <(optional) YYYY-mm-dd>'
+        'qq <symbol> <call/put> <strike_price> <(optional) expiration_date YYYY-mm-dd> : Get quote for option, all expiration dates if none specified'
         arg = arg.strip().split()
         try:
             symbol = arg[0];
+            type = strike = expiry = None
+            if len(arg) > 1:
+                try:
+                    type = arg[1]
+                    strike = arg[2]
+                except:
+                    pass
+
+                try:
+                    expiry = arg[3]
+                except:
+                    expiry = None
+
+                arg_dict = {'symbol': symbol, 'type': type, 'expiration_dates': expiry, 'strike_price': strike, 'state': 'active', 'tradability': 'tradable'};
+                quotes = self.trader.get_option_quote(arg_dict);
+                table = BeautifulTable();
+                table.column_headers = ['expiry', 'price']
+
+                for row in quotes:
+                    table.append_row(row)
+
+                print table
+            else:
+                print "Please check arguments again. Format: "
+                print "qq <symbol> <call/put> <strike> <(optional) YYYY-mm-dd>"
+
         except:
             print "Please check arguments again. Format: "
-            print "Stock: q <symbol>"
-            print "Option: q <symbol> <call/put> <strike> <(optional) YYYY-mm-dd>"
-        type = strike = expiry = None
-        if len(arg) > 1:
-            try:
-                type = arg[1]
-                strike = arg[2]
-            except Exception as e:
-                print "Please check arguments again. Format: "
-                print "q <symbol> <call/put> <strike> <(optional) YYYY-mm-dd>"
+            print "Option: qq <symbol> <call/put> <strike> <(optional) YYYY-mm-dd>"
 
-            try:
-                expiry = arg[3]
-            except:
-                expiry = None
-
-            arg_dict = {'symbol': symbol, 'type': type, 'expiration_dates': expiry, 'strike_price': strike, 'state': 'active', 'tradability': 'tradable'};
-            quotes = self.trader.get_option_quote(arg_dict);
-            table = BeautifulTable();
-            table.column_headers = ['expiry', 'price']
-
-            for row in quotes:
-                table.append_row(row)
-
-            print table
-        else:
-            try:
-                self.trader.print_quote(symbol)
-            except:
-                print "Error getting quote for:", symbol
+    def do_fullhelp(self, arg):
+        print "l : Lists your current portfolio"
+        print "b <symbol> <quantity> <price> : Submits a limit order to buy <quantity> stocks of <symbol> at <price>"
+        print "s <symbol> <quantity> <price> : Submits a limit order to sell <quantity> stocks of <symbol> at <price>"
+        print "sl <symbol> <quantity> <price> : Sets up a stop loss order to sell <quantity> stocks of <symbol> at <price>"
+        print "q <symbol> : Get quote (current price) for <symbol>"
+        print "qq <symbol> <call/put> <strike_price> <(optional) expiration_date YYYY-mm-dd> : Get quote for option, all expiration dates if none specified"
+        print "mp <symbol> <max_spend> <price_limit> : Buy as many shares of <symbol> possible by defined <max_spend> amount up to <price_limit>"
+        print "w : Show watchlist"
+        print "w a <symbol> : Adds <symbol> to watchlist"
+        print "w r <symbol> : Removes <symbol> from watchlist"
+        print "o : Lists all open orders"
+        print "c <id> : Cancel an open order identified by <id> [<id> of a open order can be retrieved from output of o]"
+        print "ca : Cancel all open orders"
+        print "bye : Exit the shell"
+        print "quit : Exit the shell"
 
     def do_bye(self, arg):
+        open(self.instruments_cache_file, 'w').write(json.dumps(self.instruments_cache))
+        open(self.watchlist_file, 'w').write(json.dumps(self.watchlist))
+        return True
+
+    def do_quit(self, arg):
         open(self.instruments_cache_file, 'w').write(json.dumps(self.instruments_cache))
         open(self.watchlist_file, 'w').write(json.dumps(self.watchlist))
         return True
